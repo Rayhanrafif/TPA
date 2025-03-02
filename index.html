@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catatan Hafalan TPA</title>
+    <link rel="icon" type="image/png" sizes="16x16" href="asset/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="asset/favicon-32x32.png">
+    <link rel="shortcut icon" href="asset/favicon.ico">
+
+    <!-- Favicon untuk Android -->
+    <link rel="icon" type="image/png" sizes="192x192" href="asset/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="asset/android-chrome-512x512.png">
+
+    <!-- Favicon untuk Apple iOS -->
+    <link rel="apple-touch-icon" sizes="180x180" href="asset/apple-touch-icon.png">
+
+    <!-- Web App Manifest (Opsional, untuk PWA) -->
+    <link rel="manifest" href="asset/site.webmanifest">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="container mt-4">
+    <h2 class="text-center">Catatan Hafalan TPA</h2>
+
+    <!-- Form Input Data -->
+    <div class="mb-3">
+        <input type="hidden" id="editIndex">
+        <input type="text" id="namaSantri" class="form-control" placeholder="Nama Santri">
+        <select id="jenisHafalan" class="form-control mt-2">
+            <option value="Doa Harian">Doa Harian</option>
+            <option value="Iqro">Iqro</option>
+            <option value="Al-Qur'an">Al-Qur'an</option>
+        </select>
+        <input type="text" id="detailHafalan" class="form-control mt-2"
+            placeholder="Detail (Misal: Surah, Halaman, Doa)">
+        <button class="btn btn-primary mt-2 w-100" onclick="simpanHafalan()">Simpan</button>
+    </div>
+
+    <!-- Filter Data -->
+    <div class="mb-3">
+        <input type="text" id="filterNama" class="form-control" onkeyup="filterHafalan()" placeholder="Cari Santri">
+    </div>
+
+    <!-- Tabel Rekap Hafalan -->
+    <h3>Rekap Hafalan</h3>
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>Nama Santri</th>
+                <th>Jenis</th>
+                <th>Detail</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="rekapHafalan"></tbody>
+    </table>
+
+    <!-- Grafik Perkembangan -->
+    <h3>Grafik Perkembangan</h3>
+    <canvas id="grafikHafalan"></canvas>
+
+    <script>
+        let dataHafalan = JSON.parse(localStorage.getItem('hafalan')) || [];
+
+        function simpanHafalan() {
+            let nama = document.getElementById('namaSantri').value;
+            let jenis = document.getElementById('jenisHafalan').value;
+            let detail = document.getElementById('detailHafalan').value;
+            let index = document.getElementById('editIndex').value;
+
+            if (nama && jenis && detail) {
+                if (index === "") {
+                    dataHafalan.push({ nama, jenis, detail });
+                } else {
+                    dataHafalan[index] = { nama, jenis, detail };
+                    document.getElementById('editIndex').value = "";
+                }
+                localStorage.setItem('hafalan', JSON.stringify(dataHafalan));
+                tampilkanHafalan();
+                updateGrafik();
+            }
+        }
+
+        function tampilkanHafalan() {
+            let rekap = document.getElementById('rekapHafalan');
+            rekap.innerHTML = '';
+            dataHafalan.forEach((item, index) => {
+                rekap.innerHTML += `<tr>
+                    <td>${item.nama}</td>
+                    <td>${item.jenis}</td>
+                    <td>${item.detail}</td>
+                    <td>
+                        <button class='btn btn-warning btn-sm' onclick='editHafalan(${index})'>Edit</button>
+                        <button class='btn btn-danger btn-sm' onclick='hapusHafalan(${index})'>Hapus</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        function editHafalan(index) {
+            document.getElementById('namaSantri').value = dataHafalan[index].nama;
+            document.getElementById('jenisHafalan').value = dataHafalan[index].jenis;
+            document.getElementById('detailHafalan').value = dataHafalan[index].detail;
+            document.getElementById('editIndex').value = index;
+        }
+
+        function hapusHafalan(index) {
+            dataHafalan.splice(index, 1);
+            localStorage.setItem('hafalan', JSON.stringify(dataHafalan));
+            tampilkanHafalan();
+            updateGrafik();
+        }
+
+        function filterHafalan() {
+            let keyword = document.getElementById('filterNama').value.toLowerCase();
+            let rekap = document.getElementById('rekapHafalan');
+            rekap.innerHTML = '';
+            dataHafalan.filter(item => item.nama.toLowerCase().includes(keyword)).forEach((item, index) => {
+                rekap.innerHTML += `<tr>
+                    <td>${item.nama}</td>
+                    <td>${item.jenis}</td>
+                    <td>${item.detail}</td>
+                    <td>
+                        <button class='btn btn-warning btn-sm' onclick='editHafalan(${index})'>Edit</button>
+                        <button class='btn btn-danger btn-sm' onclick='hapusHafalan(${index})'>Hapus</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        function updateGrafik() {
+            let ctx = document.getElementById('grafikHafalan').getContext('2d');
+            let counts = {};
+            dataHafalan.forEach(item => { counts[item.jenis] = (counts[item.jenis] || 0) + 1; });
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(counts),
+                    datasets: [{
+                        label: 'Jumlah Hafalan',
+                        data: Object.values(counts),
+                        backgroundColor: 'blue',
+                        borderColor: 'black',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: true } }
+                }
+            });
+        }
+
+        tampilkanHafalan();
+        updateGrafik();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        window.onload = function () {
+            Swal.fire({
+                title: "Selamat Datang!",
+                html: "<b>Selamat datang di Catatan Hafalan TPA! </b><br><br><small>Catatan by [Rayhan]</small>",
+                // text: "Selamat datang di Catatan Hafalan TPA!",
+                icon: "success",
+                confirmButtonText: "OK"
+            });
+        };
+    </script>
+
+</body>
+
+</html>
